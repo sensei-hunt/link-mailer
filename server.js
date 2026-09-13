@@ -18,7 +18,11 @@ import { strings, normalizeLang } from './i18n.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
-const BASE_URL = (process.env.BASE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+// Normalize BASE_URL: strip trailing slash and ensure a scheme, so a value
+// like "myapp.up.railway.app" still produces absolute (clickable) links.
+let _base = (process.env.BASE_URL || `http://localhost:${PORT}`).trim().replace(/\/$/, '');
+if (!/^https?:\/\//i.test(_base)) _base = 'https://' + _base;
+const BASE_URL = _base;
 
 // Default language for the whole app. Change APP_LANG in .env (en, es, nl, fr, de).
 // A ?lang=xx on a link can override it per recipient. (APP_LANG, not LANG, to
@@ -71,8 +75,13 @@ app.get('/', (req, res) => {
 app.get('/email.html', (req, res) => {
   const p = String(req.query.p || '').toLowerCase() || null;
   const lang = normalizeLang(req.query.lang || DEFAULT_LANG);
+  // ?to=<real email> bakes that address in (name, logo, working link) so you
+  // can send manually — no bulk mailer / merge tags needed. Omit for the bulk
+  // {{EMAIL}} version.
+  const to = String(req.query.to || '').trim();
+  const email = isValidEmail(to) ? to : '{{EMAIL}}';
   res.type('html').send(
-    buildEmailHtml({ baseUrl: BASE_URL, email: '{{EMAIL}}', question: getQuestion(lang), providerKey: p, lang }).html
+    buildEmailHtml({ baseUrl: BASE_URL, email, question: getQuestion(lang), providerKey: p, lang }).html
   );
 });
 
