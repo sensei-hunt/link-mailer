@@ -38,7 +38,8 @@ async function main() {
     console.log('\n1) Email file links to the vote page');
     const emailHtml = await (await fetch(BASE + '/email.html')).text();
     check('email.html contains /hi?e={{EMAIL}} link', emailHtml.includes('/hi?e={{EMAIL}}'));
-    check('email shows the question', emailHtml.includes('strongest Avenger'));
+    check('email greets with "Dear"', emailHtml.includes('Dear'));
+    check('email shows "Select honorably"', emailHtml.includes('Select honorably'));
 
     console.log('\n2) Vote page greets the email + masks the answer');
     const hi = await (await fetch(`${BASE}/hi?e=${encodeURIComponent(email)}`)).text();

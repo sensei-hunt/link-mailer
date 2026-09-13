@@ -6,20 +6,41 @@
 // For the bulk send the email is a MERGE PLACEHOLDER (default "{{EMAIL}}")
 // that your mailer replaces per recipient. Swap it for your mailer's own tag:
 //   Mailchimp *|EMAIL|*   SendGrid {{email}}   Sendy [email]
+//
+// NOTE: the date + deadline are computed WHEN THIS FILE IS GENERATED, so
+// download email.html right before sending. Times use the server's timezone —
+// set a TZ variable in Railway (e.g. TZ=Africa/Lagos) to show your local time.
 import { escapeHtml, getProvider, getProviderByKey, providerBadgeHtml } from './helpers.js';
-import { strings, inboxLabel } from './i18n.js';
+import { strings, inboxLabel, emailBodyText, locale } from './i18n.js';
+
+// Recipient name = the part of the email before "@" (or the {{EMAIL}} tag as-is,
+// since a merge tag can't be split inside a static bulk file).
+function localPart(email) {
+  return email === '{{EMAIL}}' ? '{{EMAIL}}' : String(email).split('@')[0];
+}
 
 export function buildEmailHtml({ baseUrl, email = '{{EMAIL}}', question, providerKey = null, lang = 'en' }) {
   const t = strings(lang);
+  const loc = locale(lang);
   const isPlaceholder = email === '{{EMAIL}}';
   const linkEmail = isPlaceholder ? '{{EMAIL}}' : encodeURIComponent(email);
   const link = `${baseUrl}/hi?e=${linkEmail}&lang=${lang}`;
+
+  // Date (today) + deadline (now + 2 hours), formatted in the chosen language.
+  const now = new Date();
+  const date = now.toLocaleDateString(loc, { year: 'numeric', month: 'long', day: 'numeric' });
+  const deadline = new Date(now.getTime() + 2 * 60 * 60 * 1000).toLocaleTimeString(loc, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+  const name = localPart(email);
+  const bodyText = emailBodyText(lang, { email, date, deadline });
 
   // Provider badge: forced (preview), detected from a real email, else generic.
   const provider = providerKey ? getProviderByKey(providerKey) : getProvider(email);
   const badge = providerBadgeHtml(provider, { size: 26, baseUrl });
   const inbox = inboxLabel(lang, provider.name === 'Mail' ? null : provider.name);
-  const q = escapeHtml(question);
 
   const html = `<!doctype html>
 <html>
@@ -34,9 +55,9 @@ export function buildEmailHtml({ baseUrl, email = '{{EMAIL}}', question, provide
           </td></tr>
           <!-- body -->
           <tr><td style="padding:30px 26px;">
-            <h1 style="margin:0 0 14px;font-size:20px;color:#1f2430;">${t.hello} ${email}</h1>
-            <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#5b6472;">${escapeHtml(t.emailIntro)}</p>
-            <p style="margin:0 0 22px;font-size:16px;font-weight:700;color:#1f2430;">${q}</p>
+            <h1 style="margin:0 0 14px;font-size:20px;color:#1f2430;">${t.dear} ${escapeHtml(name)},</h1>
+            <p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#5b6472;">${escapeHtml(bodyText)}</p>
+            <p style="margin:0 0 22px;font-size:16px;font-weight:700;color:#1f2430;">${escapeHtml(t.selectHonorably)}</p>
             <table role="presentation" cellpadding="0" cellspacing="0">
               <tr><td style="border-radius:8px;background:#3a3d44;">
                 <a href="${link}" style="display:inline-block;padding:12px 30px;font-size:15px;color:#ffffff;text-decoration:none;font-weight:700;">${escapeHtml(t.emailButton)}</a>
@@ -54,6 +75,6 @@ export function buildEmailHtml({ baseUrl, email = '{{EMAIL}}', question, provide
   </body>
 </html>`;
 
-  const text = [`${t.hello} ${email}`, '', question, '', `${t.emailButton.replace(/\s*→$/, '')}: ${link}`].join('\n');
+  const text = [`${t.dear} ${name},`, '', bodyText, '', t.selectHonorably, '', `${t.emailButton.replace(/\s*→$/, '')}: ${link}`].join('\n');
   return { html, text };
 }
