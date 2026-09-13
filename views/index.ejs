@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vote email — setup & preview</title>
+  <link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Class vote mailer</h1>
+      <p>Question: <strong><%= question %></strong></p>
+    </header>
+
+    <div class="status <%= telegramReady ? 'ok' : 'warn' %>">
+      Telegram: <strong><%= telegramReady ? 'configured ✓' : 'DEV mode — answers are logged to the server console' %></strong>
+      <% if (!telegramReady) { %>
+        <span class="muted small">Set <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code> in <code>.env</code> to post to the chat.</span>
+      <% } %>
+    </div>
+
+    <div class="card">
+      <h2>1 · The email file</h2>
+      <p class="muted small">Upload this to your bulk mailer. The button links to
+        <code><%= baseUrl %>/hi?e={{EMAIL}}</code> — replace <code>{{EMAIL}}</code> with your
+        mailer's recipient-email merge tag so each classmate gets their own link.</p>
+      <p><a class="btn secondary" href="/email.html" target="_blank">View / download email.html</a></p>
+      <iframe class="preview-frame tall" title="email preview" sandbox="" srcdoc="<%= emailHtml %>"></iframe>
+    </div>
+
+    <div class="card">
+      <h2>2 · Try the flow</h2>
+      <p class="muted small">This is the page classmates land on after clicking the button.</p>
+      <p><a class="btn" href="/hi?e=<%= encodeURIComponent(testEmail) %>">Open the vote page as <%= testEmail %> →</a></p>
+    </div>
+  </div>
+</body>
+</html>

